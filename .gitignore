@@ -1,2 +1,26 @@
+# Entornos virtuales
 .venv/
+venv/
+env/
 
+# Archivos binarios pesados (superan límite de GitHub o son redundantes)
+*.mp4
+*.zip
+*.pptx
+*.tar.gz
+
+# Pesos de modelos, logits cacheados y checkpoints
+checkpoints/
+outputs/
+results/**/*.pt
+results/**/*.npz
+*.safetensors
+*.bin
+
+# Cache de Python, pruebas y Jupyter
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+.cache/
+.DS_Store
