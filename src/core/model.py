@@ -53,7 +53,7 @@ def setup_decision_tokenizer(
 
 
 def init_reserved_token_embeddings(
-    model: PreTrainedModel,
+    base_model: PreTrainedModel,
     new_token_ids: Sequence[int],
     reference_token_ids: Sequence[int] | None = None,
     noise_std: float = 1e-4,
@@ -65,8 +65,8 @@ def init_reserved_token_embeddings(
     """
     
     # Obtencion de capas de embedding[salida/entrada]
-    input_embeddings = model.get_input_embeddings()   #nn.Embedding
-    output_embeddings = model.get_output_embeddings() #nn.Linear
+    input_embeddings = base_model.get_input_embeddings()   #nn.Embedding
+    output_embeddings = base_model.get_output_embeddings() #nn.Linear
 
     # Desactiva el motor de autogradiente de pyTorch
     # Modificaremos directamente los pesos de los tokens que aniadimos.
@@ -97,16 +97,16 @@ def init_reserved_token_embeddings(
 
 
 class DecisionModel(nn.Module):
-    """Single-pass (T=1) Decision Model wrapper around a Causal LM backbone."""
+    """Single-pass (T=1) Decision Model wrapper around a Causal LM base_model."""
 
     def __init__(
         self,
-        backbone: PreTrainedModel | PeftModel,
+        base_model: PreTrainedModel | PeftModel,
         option_token_ids: Sequence[int],
         readout_token_id: int,
     ) -> None:
         super().__init__()
-        self.backbone = backbone
+        self.base_model = base_model
         self.readout_token_id = readout_token_id
         # 2
         self.register_buffer("option_token_ids", torch.tensor(option_token_ids, dtype=torch.long))
@@ -124,7 +124,7 @@ class DecisionModel(nn.Module):
         correct_option_idx: torch.Tensor | None = None,
     ) -> DecisionModelOutput:
         """Run single-pass prefill, extract logits at last token (-1) restricted to options."""
-        outputs = self.backbone(
+        outputs = self.base_model(
             input_ids=input_ids, #Prompt
             attention_mask=attention_mask,
             use_cache=False,  # No autoregressive decoding, no KV-cache retained!
@@ -152,24 +152,31 @@ def build_decision_model(
     device_map: str | None = None,
 ) -> tuple[DecisionModel, PreTrainedTokenizerBase]:
     """Build a complete DecisionModel with tokenizer and optional LoRA adapters."""
+
+    # Obtiene al tokenizer, y los IDs de los tokens.
     tokenizer, option_token_ids, readout_token_id = setup_decision_tokenizer(
         model_name_or_path=model_name_or_path,
         num_options=num_options,
     )
 
-    model = AutoModelForCausalLM.from_pretrained(
+    # Obtiene al modeloBase.[PESOS]
+    base_model = AutoModelForCausalLM.from_pretrained(
         model_name_or_path,
         torch_dtype=torch_dtype,
         device_map=device_map,
         trust_remote_code=True,
     )
 
-    model.resize_token_embeddings(len(tokenizer))
+    # Agranda la matriz de embeddings([readOut, optS] tokens)
+    base_model.resize_token_embeddings(len(tokenizer))
+
 
     ref_chars = list("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-    ref_ids = [tokenizer.convert_tokens_to_ids(c) for c in ref_chars if tokenizer.convert_tokens_to_ids(c) != tokenizer.unk_token_id]
-    all_new_ids = option_token_ids + [readout_token_id]
-    init_reserved_token_embeddings(model, all_new_ids, reference_token_ids=ref_ids)
+    reference_token_ids = [tokenizer.convert_tokens_to_ids(c) for c in ref_chars if tokenizer.convert_tokens_to_ids(c) != tokenizer.unk_token_id]
+    new_token_ids = option_token_ids + [readout_token_id]
+
+    # Inicializa los nuevos embeddings con el promedio de caracteres.
+    init_reserved_token_embeddings(base_model, new_token_ids, reference_token_ids=reference_token_ids)
 
     if use_lora:
         lora_config = LoraConfig(
@@ -181,10 +188,10 @@ def build_decision_model(
             target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
             modules_to_save=["embed_tokens", "lm_head"],
         )
-        model = get_peft_model(model, lora_config)
+        base_model = get_peft_model(base_model, lora_config)
 
     decision_model = DecisionModel(
-        backbone=model,
+        base_model=base_model,
         option_token_ids=option_token_ids,
         readout_token_id=readout_token_id,
     )
@@ -194,7 +201,7 @@ def build_decision_model(
 
 def load_trained_decision_model(
     checkpoint_dir: str | Path,
-    base_model_name_or_path: str = "Qwen/Qwen2.5-0.5B-Instruct",
+    model_name_or_path: str = "Qwen/Qwen2.5-0.5B-Instruct",
     num_options: int = 77,
     torch_dtype: torch.dtype = torch.float32,
     device_map: str | None = None,
@@ -205,12 +212,12 @@ def load_trained_decision_model(
         raise FileNotFoundError(f"Checkpoint directory not found: {ckpt_path}")
 
     tokenizer, option_token_ids, readout_token_id = setup_decision_tokenizer(
-        model_name_or_path=base_model_name_or_path,
+        model_name_or_path=model_name_or_path,
         num_options=num_options,
     )
 
     base_model = AutoModelForCausalLM.from_pretrained(
-        base_model_name_or_path,
+        model_name_or_path,
         torch_dtype=torch_dtype,
         device_map=device_map,
         trust_remote_code=True,
@@ -218,10 +225,10 @@ def load_trained_decision_model(
     base_model.resize_token_embeddings(len(tokenizer))
 
     # Attach the trained LoRA adapter weights
-    peft_model = PeftModel.from_pretrained(base_model, str(ckpt_path))
+    base_model = PeftModel.from_pretrained(base_model, str(ckpt_path))
 
     decision_model = DecisionModel(
-        backbone=peft_model,
+        base_model=base_model,
         option_token_ids=option_token_ids,
         readout_token_id=readout_token_id,
     )

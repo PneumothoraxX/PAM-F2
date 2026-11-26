@@ -39,14 +39,14 @@ class DecisionExample:
 
     prompt: str
     correct_option_idx: int | None
-    target_token: str | None
+    correct_option_token: str | None
     option_to_class: list[int]
     class_to_option: dict[int, int]
 
 
 def format_decision_prompt(
     query: str,
-    options: Sequence[str],
+    option_names: Sequence[str],
     class_idx: int | None = None,
     shuffle_options: bool = True,
     rng: random.Random | None = None,
@@ -58,7 +58,7 @@ def format_decision_prompt(
     left-to-right causal attention lets the option token attend to its full label,
     and the prompt terminates with <readout> for single-position logit extraction.
     """
-    num_options = len(options)
+    num_options = len(option_names)
     if not 1 <= num_options <= MAX_RESERVED_OPTIONS:
         raise ValueError(
             f"Number of options must be in [1, {MAX_RESERVED_OPTIONS}], got {num_options}"
@@ -81,21 +81,21 @@ def format_decision_prompt(
         "Options:",
     ]
     for slot_idx, c_idx in enumerate(option_to_class):
-        display_text = format_option_label(options[c_idx], humanize=humanize_labels)
+        display_text = format_option_label(option_names[c_idx], humanize=humanize_labels)
         lines.append(f"- {display_text} {option_token(slot_idx)}")
 
     lines.append(READOUT_TOKEN)
     prompt = "\n".join(lines)
 
     correct_option_idx = class_to_option[class_idx] if class_idx is not None else None
-    target_token = (
+    correct_option_token = (
         option_token(correct_option_idx) if correct_option_idx is not None else None
     )
 
     return DecisionExample(
         prompt=prompt,
         correct_option_idx=correct_option_idx,
-        target_token=target_token,
+        correct_option_token=correct_option_token,
         option_to_class=option_to_class,
         class_to_option=class_to_option,
     )

@@ -40,7 +40,7 @@ class CalibrationResult:
 
 def compute_ece(
     logits: torch.Tensor,
-    labels: torch.Tensor,
+    class_idx_list: torch.Tensor,
     temperature: float = 1.0,
     num_bins: int = 15,
 ) -> ECEResult:
@@ -55,17 +55,17 @@ def compute_ece(
         raise ValueError(f"num_bins must be >= 1, got {num_bins}")
     if logits.ndim != 2:
         raise ValueError(f"logits must be 2D (N, K), got shape {tuple(logits.shape)}")
-    if labels.ndim != 1 or labels.size(0) != logits.size(0):
-        raise ValueError("labels must be 1D with the same length as logits")
+    if class_idx_list.ndim != 1 or class_idx_list.size(0) != logits.size(0):
+        raise ValueError("class_idx_list must be 1D with the same length as logits")
 
     with torch.no_grad():
         scaled_logits = logits.detach().float() / float(temperature)
-        target = labels.detach().long()
+        class_idx_tensor = class_idx_list.detach().long()
 
-        nll = F.cross_entropy(scaled_logits, target).item()
+        nll = F.cross_entropy(scaled_logits, class_idx_tensor).item()
         probs = F.softmax(scaled_logits, dim=-1)
-        confidences, predictions = probs.max(dim=-1)
-        accuracies = (predictions == target).float()
+        confidences, preds = probs.max(dim=-1)
+        accuracies = (preds == class_idx_tensor).float()
 
         overall_acc = accuracies.mean().item()
         n_samples = logits.size(0)
@@ -135,18 +135,18 @@ class TemperatureScaler(nn.Module):
     def fit(
         self,
         val_logits: torch.Tensor,
-        val_labels: torch.Tensor,
+        val_class_idx_list: torch.Tensor,
         test_logits: torch.Tensor | None = None,
-        test_labels: torch.Tensor | None = None,
+        test_class_idx_list: torch.Tensor | None = None,
         num_bins: int = 15,
         lr: float = 0.05,
         max_iter: int = 100,
     ) -> CalibrationResult:
         """Fit optimal temperature T* on validation logits using L-BFGS."""
         logits = val_logits.detach().float()
-        labels = val_labels.detach().long()
+        class_idx_list = val_class_idx_list.detach().long()
 
-        val_before = compute_ece(logits, labels, temperature=1.0, num_bins=num_bins)
+        val_before = compute_ece(logits, class_idx_list, temperature=1.0, num_bins=num_bins)
 
         optimizer = torch.optim.LBFGS(
             [self.log_temperature],
@@ -158,7 +158,7 @@ class TemperatureScaler(nn.Module):
         def closure() -> torch.Tensor:
             optimizer.zero_grad()
             scaled = self.forward(logits)
-            loss = F.cross_entropy(scaled, labels)
+            loss = F.cross_entropy(scaled, class_idx_list)
             loss.backward()
             return loss
 
@@ -166,7 +166,7 @@ class TemperatureScaler(nn.Module):
 
         # Fallback safeguard: if NLL somehow worsened, revert to T = 1.0
         opt_t = self.temperature
-        val_after = compute_ece(logits, labels, temperature=opt_t, num_bins=num_bins)
+        val_after = compute_ece(logits, class_idx_list, temperature=opt_t, num_bins=num_bins)
         if val_after.nll > val_before.nll + 1e-6:
             with torch.no_grad():
                 self.log_temperature.zero_()
@@ -175,9 +175,9 @@ class TemperatureScaler(nn.Module):
 
         test_before = None
         test_after = None
-        if test_logits is not None and test_labels is not None:
-            test_before = compute_ece(test_logits, test_labels, temperature=1.0, num_bins=num_bins)
-            test_after = compute_ece(test_logits, test_labels, temperature=opt_t, num_bins=num_bins)
+        if test_logits is not None and test_class_idx_list is not None:
+            test_before = compute_ece(test_logits, test_class_idx_list, temperature=1.0, num_bins=num_bins)
+            test_after = compute_ece(test_logits, test_class_idx_list, temperature=opt_t, num_bins=num_bins)
 
         return CalibrationResult(
             temperature=opt_t,

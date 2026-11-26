@@ -32,10 +32,10 @@ class TestReservedTokens(unittest.TestCase):
 
 class TestPromptFormatting(unittest.TestCase):
     def test_unshuffled_prompt_structure(self) -> None:
-        options = ["activate_my_card", "lost_or_stolen_card", "card_arrival"]
+        option_names = ["activate_my_card", "lost_or_stolen_card", "card_arrival"]
         example = format_decision_prompt(
             query="  My card has not arrived yet  ",
-            options=options,
+            option_names=option_names,
             class_idx=2,
             shuffle_options=False,
         )
@@ -47,19 +47,19 @@ class TestPromptFormatting(unittest.TestCase):
         self.assertEqual(lines[5], "- card arrival <opt_2>")
         self.assertEqual(lines[-1], READOUT_TOKEN)
         self.assertEqual(example.correct_option_idx, 2)
-        self.assertEqual(example.target_token, "<opt_2>")
+        self.assertEqual(example.correct_option_token, "<opt_2>")
         self.assertEqual(example.option_to_class, [0, 1, 2])
 
     def test_shuffled_prompt_preserves_bijection(self) -> None:
-        options = [f"intent_{i}" for i in range(20)]
-        target_class = 7
+        option_names = [f"intent_{i}" for i in range(20)]
+        class_idx = 7
 
         slots_seen = set()
         for seed in range(5):
             example = format_decision_prompt(
                 query="Where is my transfer?",
-                options=options,
-                class_idx=target_class,
+                option_names=option_names,
+                class_idx=class_idx,
                 shuffle_options=True,
                 rng=random.Random(seed),
                 humanize_labels=False,
@@ -68,9 +68,9 @@ class TestPromptFormatting(unittest.TestCase):
             self.assertEqual(set(example.option_to_class), set(range(20)))
             assert example.correct_option_idx is not None
             self.assertEqual(
-                example.option_to_class[example.correct_option_idx], target_class
+                example.option_to_class[example.correct_option_idx], class_idx
             )
-            self.assertEqual(example.target_token, f"<opt_{example.correct_option_idx}>")
+            self.assertEqual(example.correct_option_token, f"<opt_{example.correct_option_idx}>")
             self.assertTrue(example.prompt.endswith(READOUT_TOKEN))
             slots_seen.add(example.correct_option_idx)
 
@@ -78,13 +78,13 @@ class TestPromptFormatting(unittest.TestCase):
 
     def test_invalid_inputs_raise(self) -> None:
         with self.assertRaises(ValueError):
-            format_decision_prompt("q", options=[], class_idx=None)
+            format_decision_prompt("q", option_names=[], class_idx=None)
         with self.assertRaises(ValueError):
-            format_decision_prompt("q", options=["a", "b"], class_idx=2)
+            format_decision_prompt("q", option_names=["a", "b"], class_idx=2)
         with self.assertRaises(ValueError):
             format_decision_prompt(
                 "q",
-                options=[f"o_{i}" for i in range(MAX_RESERVED_OPTIONS + 1)],
+                option_names=[f"o_{i}" for i in range(MAX_RESERVED_OPTIONS + 1)],
             )
 
 

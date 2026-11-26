@@ -19,7 +19,7 @@ class TestCalibration(unittest.TestCase):
         val_data, test_data = generate_synthetic_banking77_logits(
             num_val=600,
             num_test=800,
-            num_classes=77,
+            num_options=77,
             target_accuracy=0.88,
             overconfidence_factor=2.8,
             seed=123,
@@ -28,9 +28,9 @@ class TestCalibration(unittest.TestCase):
         scaler = TemperatureScaler(init_temperature=1.0)
         result = scaler.fit(
             val_logits=val_data["logits"],
-            val_labels=val_data["labels"],
+            val_class_idx_list=val_data["class_idx_list"],
             test_logits=test_data["logits"],
-            test_labels=test_data["labels"],
+            test_class_idx_list=test_data["class_idx_list"],
             num_bins=15,
         )
 
@@ -59,8 +59,8 @@ class TestCalibration(unittest.TestCase):
 
     def test_plot_reliability_diagram_creates_file(self) -> None:
         val_data, _ = generate_synthetic_banking77_logits(num_val=200, num_test=50, seed=7)
-        before = compute_ece(val_data["logits"], val_data["labels"], temperature=1.0)
-        after = compute_ece(val_data["logits"], val_data["labels"], temperature=2.2)
+        before = compute_ece(val_data["logits"], val_data["class_idx_list"], temperature=1.0)
+        after = compute_ece(val_data["logits"], val_data["class_idx_list"], temperature=2.2)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fig_path = Path(tmpdir) / "reliability.png"
