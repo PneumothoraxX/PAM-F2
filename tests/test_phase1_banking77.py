@@ -14,7 +14,7 @@ class TestBanking77Integration(unittest.TestCase):
         cls.splits = load_banking77_splits(val_ratio=0.2, seed=42)
 
     def test_split_sizes_and_stratification(self) -> None:
-        self.assertEqual(self.splits.num_classes, 77)
+        self.assertEqual(self.splits.num_options, 77)
         self.assertEqual(len(self.splits.train) + len(self.splits.val), 10_003)
         self.assertEqual(len(self.splits.test), 3_080)
 
@@ -30,7 +30,7 @@ class TestBanking77Integration(unittest.TestCase):
     def test_torch_dataset_epoch_shuffle_and_determinism(self) -> None:
         ds = Banking77DecisionDataset(
             self.splits.train,
-            self.splits.label_names,
+            self.splits.option_names,
             shuffle_options=True,
             seed=42,
         )
@@ -53,7 +53,7 @@ class TestBanking77Integration(unittest.TestCase):
     def test_val_unshuffled_is_canonical(self) -> None:
         val_ds = Banking77DecisionDataset(
             self.splits.val,
-            self.splits.label_names,
+            self.splits.option_names,
             shuffle_options=False,
         )
         ex = val_ds[5]

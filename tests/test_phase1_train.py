@@ -19,9 +19,9 @@ class TestTrainPipeline(unittest.TestCase):
     def test_decision_data_collator(self) -> None:
         collator = DecisionDataCollator(self.tokenizer, max_length=128)
 
-        options = ["opt_a", "opt_b", "opt_c"]
-        ex1 = format_decision_prompt("query 1", options, class_idx=0, shuffle_options=False)
-        ex2 = format_decision_prompt("a much longer query 2 with extra words", options, class_idx=2, shuffle_options=False)
+        option_names = ["opt_a", "opt_b", "opt_c"]
+        ex1 = format_decision_prompt("query 1", option_names, class_idx=0, shuffle_options=False)
+        ex2 = format_decision_prompt("a much longer query 2 with extra words", option_names, class_idx=2, shuffle_options=False)
 
         batch = collator([ex1, ex2])
 

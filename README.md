@@ -18,17 +18,28 @@ Implementación de la **Fase 2 (Entrega 2 / Entrega Final)** del proyecto de inv
 PAM-F2/
 ├── configs/
 ├── notebooks/
+│   └── 01_phase1_banking77_t4.ipynb # Notebook listo para Kaggle/Colab (GPU T4)
 ├── results/
 │   ├── phase1_banking77/
 │   └── phase2_bfcl/
 ├── src/
 │   ├── core/
-│   │   └── prompts.py              # Tokens <opt_i>, <readout> y formateador T=1
+│   │   ├── prompts.py              # Tokens <opt_i>, <readout> y formateador T=1
+│   │   ├── model.py                # DecisionModel (base_model + LoRA, paso único)
+│   │   ├── calibration.py          # TemperatureScaler (L-BFGS), ECE y Reliability Diagrams
+│   │   └── react_baseline.py       # Baseline ReAct (T>1) y benchmark en vivo T=1 vs T>1
 │   └── phase1_banking77/
-│       └── data.py                 # Splits train/val/test y Dataset de BANKING77
+│       ├── data.py                 # Splits estratificados train/val/test y Dataset
+│       ├── train.py                # Entrenamiento LoRA y exportación de logits
+│       └── evaluate.py             # Calibración L-BFGS, métricas ECE y figuras PNG
 ├── tests/
 │   ├── test_core_prompts.py
-│   └── test_phase1_banking77.py
+│   ├── test_core_model.py
+│   ├── test_core_calibration.py
+│   ├── test_core_react.py
+│   ├── test_phase1_banking77.py
+│   ├── test_phase1_train.py
+│   └── test_phase1_evaluate.py
 ├── requirements.txt
 └── README.md
 ```
@@ -43,16 +54,22 @@ source .venv/bin/activate
 uv pip install -r requirements.txt
 ```
 
-## Uso Actual (Pipeline de Datos — Fase 1)
+## Ejecución de Fase 1 y Pruebas
 
-Para descargar **BANKING77** (`PolyAI/banking77`), generar los splits estratificados (`train` / `val` / `test`) y visualizar un prompt formateado con `<opt_k>` y `<readout>`:
-
-```bash
-python -m src.phase1_banking77.data
-```
-
-Para ejecutar toda la suite de pruebas:
-
-```bash
-python -m unittest discover -s tests -v
-```
+1. **Correr toda la suite de tests (19 pruebas):**
+   ```bash
+   PYTHONPATH=. .venv/bin/python -m unittest discover -s tests -v
+   ```
+2. **Previsualizar el dataset BANKING77 y formato de prompt ($T=1$):**
+   ```bash
+   PYTHONPATH=. .venv/bin/python -m src.phase1_banking77.data
+   ```
+3. **Entrenar `DecisionModel` con LoRA (en GPU T4 / Kaggle):**
+   ```bash
+   PYTHONPATH=. .venv/bin/python -m src.phase1_banking77.train --model Qwen/Qwen2.5-0.5B-Instruct --epochs 3
+   ```
+4. **Calibrar con L-BFGS, correr benchmark en vivo contra ReAct y generar gráficas:**
+   ```bash
+   PYTHONPATH=. .venv/bin/python -m src.phase1_banking77.evaluate --run-live-benchmark --benchmark-samples 50
+   ```
+   *(Para probar localmente la calibración y generación de las 3 gráficas sin haber corrido el entrenamiento aún, usa `--demo-synthetic`).*

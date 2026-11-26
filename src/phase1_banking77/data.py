@@ -19,11 +19,11 @@ class Banking77Splits:
     train: Dataset
     val: Dataset
     test: Dataset
-    label_names: list[str]
+    option_names: list[str]
 
     @property
-    def num_classes(self) -> int:
-        return len(self.label_names)
+    def num_options(self) -> int:
+        return len(self.option_names)
 
 
 def load_banking77_splits(
@@ -41,7 +41,7 @@ def load_banking77_splits(
 
     raw = load_dataset(dataset_name)
     label_feature = raw["train"].features["label"]
-    label_names = list(label_feature.names)
+    option_names = list(label_feature.names)
 
     split = raw["train"].train_test_split(
         test_size=val_ratio,
@@ -53,7 +53,7 @@ def load_banking77_splits(
         train=split["train"],
         val=split["test"],
         test=raw["test"],
-        label_names=label_names,
+        option_names=option_names,
     )
 
 
@@ -68,13 +68,13 @@ class Banking77DecisionDataset(TorchDataset[DecisionExample]):
     def __init__(
         self,
         hf_split: Dataset,
-        label_names: Sequence[str],
+        option_names: Sequence[str],
         shuffle_options: bool = True,
         seed: int = 42,
         humanize_labels: bool = True,
     ) -> None:
         self.hf_split = hf_split
-        self.label_names = list(label_names)
+        self.option_names = list(option_names)
         self.shuffle_options = shuffle_options
         self.seed = seed
         self.humanize_labels = humanize_labels
@@ -98,7 +98,7 @@ class Banking77DecisionDataset(TorchDataset[DecisionExample]):
         )
         return format_decision_prompt(
             query=row["text"],
-            options=self.label_names,
+            option_names=self.option_names,
             class_idx=int(row["label"]),
             shuffle_options=self.shuffle_options,
             rng=rng,
@@ -109,7 +109,7 @@ class Banking77DecisionDataset(TorchDataset[DecisionExample]):
 def _preview() -> None:
     splits = load_banking77_splits(val_ratio=0.2, seed=42)
     total = len(splits.train) + len(splits.val) + len(splits.test)
-    print(f"Dataset BANKING77 cargado ({splits.num_classes} clases, {total} consultas)")
+    print(f"Dataset BANKING77 cargado ({splits.num_options} clases, {total} consultas)")
     print(
         f"Splits -> train: {len(splits.train)}, "
         f"val: {len(splits.val)}, test: {len(splits.test)}"
@@ -117,7 +117,7 @@ def _preview() -> None:
 
     train_ds = Banking77DecisionDataset(
         splits.train,
-        splits.label_names,
+        splits.option_names,
         shuffle_options=True,
         seed=42,
     )
@@ -125,17 +125,17 @@ def _preview() -> None:
     example = train_ds[0]
 
     assert example.correct_option_idx is not None
-    mapped_class = example.option_to_class[example.correct_option_idx]
-    assert mapped_class == sample_row["label"]
+    class_idx = example.option_to_class[example.correct_option_idx]
+    assert class_idx == sample_row["label"]
 
     prompt_lines = example.prompt.splitlines()
     print("\n--- Ejemplo formateado (resumen) ---")
     print("\n".join(prompt_lines[:8]))
-    print(f"... ({len(splits.label_names) - 5} opciones intermedias) ...")
+    print(f"... ({len(splits.option_names) - 5} opciones intermedias) ...")
     print("\n".join(prompt_lines[-3:]))
     print(
-        f"\nClase real: {sample_row['label']} ({splits.label_names[sample_row['label']]})"
-        f" -> Slot asignado: {example.correct_option_idx} ({example.target_token})"
+        f"\nClase real: {sample_row['label']} ({splits.option_names[sample_row['label']]})"
+        f" -> Slot asignado: {example.correct_option_idx} ({example.correct_option_token})"
     )
 
 
