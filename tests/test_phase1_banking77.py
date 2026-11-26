@@ -39,14 +39,14 @@ class TestBanking77Integration(unittest.TestCase):
         ex_epoch0_a = ds[0]
         ex_epoch0_b = ds[0]
         self.assertEqual(ex_epoch0_a.prompt, ex_epoch0_b.prompt)
-        self.assertEqual(ex_epoch0_a.target_option_idx, ex_epoch0_b.target_option_idx)
+        self.assertEqual(ex_epoch0_a.correct_option_idx, ex_epoch0_b.correct_option_idx)
 
         ds.set_epoch(1)
         ex_epoch1 = ds[0]
         self.assertNotEqual(ex_epoch0_a.option_to_class, ex_epoch1.option_to_class)
-        assert ex_epoch1.target_option_idx is not None
+        assert ex_epoch1.correct_option_idx is not None
         self.assertEqual(
-            ex_epoch1.option_to_class[ex_epoch1.target_option_idx],
+            ex_epoch1.option_to_class[ex_epoch1.correct_option_idx],
             self.splits.train[0]["label"],
         )
 
@@ -58,7 +58,7 @@ class TestBanking77Integration(unittest.TestCase):
         )
         ex = val_ds[5]
         self.assertEqual(ex.option_to_class, list(range(77)))
-        self.assertEqual(ex.target_option_idx, self.splits.val[5]["label"])
+        self.assertEqual(ex.correct_option_idx, self.splits.val[5]["label"])
 
 
 if __name__ == "__main__":

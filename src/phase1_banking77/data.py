@@ -99,7 +99,7 @@ class Banking77DecisionDataset(TorchDataset[DecisionExample]):
         return format_decision_prompt(
             query=row["text"],
             options=self.label_names,
-            correct_idx=int(row["label"]),
+            class_idx=int(row["label"]),
             shuffle_options=self.shuffle_options,
             rng=rng,
             humanize_labels=self.humanize_labels,
@@ -124,8 +124,8 @@ def _preview() -> None:
     sample_row = splits.train[0]
     example = train_ds[0]
 
-    assert example.target_option_idx is not None
-    mapped_class = example.option_to_class[example.target_option_idx]
+    assert example.correct_option_idx is not None
+    mapped_class = example.option_to_class[example.correct_option_idx]
     assert mapped_class == sample_row["label"]
 
     prompt_lines = example.prompt.splitlines()
@@ -135,7 +135,7 @@ def _preview() -> None:
     print("\n".join(prompt_lines[-3:]))
     print(
         f"\nClase real: {sample_row['label']} ({splits.label_names[sample_row['label']]})"
-        f" -> Slot asignado: {example.target_option_idx} ({example.target_token})"
+        f" -> Slot asignado: {example.correct_option_idx} ({example.target_token})"
     )
 
 

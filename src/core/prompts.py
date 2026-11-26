@@ -38,7 +38,7 @@ class DecisionExample:
     """Single formatted decision-model prompt and slot-to-class mapping."""
 
     prompt: str
-    target_option_idx: int | None
+    correct_option_idx: int | None
     target_token: str | None
     option_to_class: list[int]
     class_to_option: dict[int, int]
@@ -47,7 +47,7 @@ class DecisionExample:
 def format_decision_prompt(
     query: str,
     options: Sequence[str],
-    correct_idx: int | None = None,
+    class_idx: int | None = None,
     shuffle_options: bool = True,
     rng: random.Random | None = None,
     humanize_labels: bool = True,
@@ -63,39 +63,39 @@ def format_decision_prompt(
         raise ValueError(
             f"Number of options must be in [1, {MAX_RESERVED_OPTIONS}], got {num_options}"
         )
-    if correct_idx is not None and not 0 <= correct_idx < num_options:
+    if class_idx is not None and not 0 <= class_idx < num_options:
         raise ValueError(
-            f"correct_idx must be in [0, {num_options - 1}], got {correct_idx}"
+            f"class_idx must be in [0, {num_options - 1}], got {class_idx}"
         )
 
-    perm = list(range(num_options))
+    option_to_class = list(range(num_options))
     if shuffle_options:
         shuffler = rng if rng is not None else random.Random()
-        shuffler.shuffle(perm)
+        shuffler.shuffle(option_to_class)
 
-    class_to_option = {orig_idx: slot_idx for slot_idx, orig_idx in enumerate(perm)}
+    class_to_option = {c_idx: slot_idx for slot_idx, c_idx in enumerate(option_to_class)}
 
     lines = [
         "Select the intent that best matches the user query.",
         f"Query: {query.strip()}",
         "Options:",
     ]
-    for slot_idx, orig_idx in enumerate(perm):
-        display_text = format_option_label(options[orig_idx], humanize=humanize_labels)
+    for slot_idx, c_idx in enumerate(option_to_class):
+        display_text = format_option_label(options[c_idx], humanize=humanize_labels)
         lines.append(f"- {display_text} {option_token(slot_idx)}")
 
     lines.append(READOUT_TOKEN)
     prompt = "\n".join(lines)
 
-    target_option_idx = class_to_option[correct_idx] if correct_idx is not None else None
+    correct_option_idx = class_to_option[class_idx] if class_idx is not None else None
     target_token = (
-        option_token(target_option_idx) if target_option_idx is not None else None
+        option_token(correct_option_idx) if correct_option_idx is not None else None
     )
 
     return DecisionExample(
         prompt=prompt,
-        target_option_idx=target_option_idx,
+        correct_option_idx=correct_option_idx,
         target_token=target_token,
-        option_to_class=perm,
+        option_to_class=option_to_class,
         class_to_option=class_to_option,
     )

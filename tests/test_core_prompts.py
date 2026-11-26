@@ -36,7 +36,7 @@ class TestPromptFormatting(unittest.TestCase):
         example = format_decision_prompt(
             query="  My card has not arrived yet  ",
             options=options,
-            correct_idx=2,
+            class_idx=2,
             shuffle_options=False,
         )
 
@@ -46,7 +46,7 @@ class TestPromptFormatting(unittest.TestCase):
         self.assertEqual(lines[4], "- lost or stolen card <opt_1>")
         self.assertEqual(lines[5], "- card arrival <opt_2>")
         self.assertEqual(lines[-1], READOUT_TOKEN)
-        self.assertEqual(example.target_option_idx, 2)
+        self.assertEqual(example.correct_option_idx, 2)
         self.assertEqual(example.target_token, "<opt_2>")
         self.assertEqual(example.option_to_class, [0, 1, 2])
 
@@ -59,28 +59,28 @@ class TestPromptFormatting(unittest.TestCase):
             example = format_decision_prompt(
                 query="Where is my transfer?",
                 options=options,
-                correct_idx=target_class,
+                class_idx=target_class,
                 shuffle_options=True,
                 rng=random.Random(seed),
                 humanize_labels=False,
             )
             self.assertEqual(len(example.option_to_class), 20)
             self.assertEqual(set(example.option_to_class), set(range(20)))
-            assert example.target_option_idx is not None
+            assert example.correct_option_idx is not None
             self.assertEqual(
-                example.option_to_class[example.target_option_idx], target_class
+                example.option_to_class[example.correct_option_idx], target_class
             )
-            self.assertEqual(example.target_token, f"<opt_{example.target_option_idx}>")
+            self.assertEqual(example.target_token, f"<opt_{example.correct_option_idx}>")
             self.assertTrue(example.prompt.endswith(READOUT_TOKEN))
-            slots_seen.add(example.target_option_idx)
+            slots_seen.add(example.correct_option_idx)
 
         self.assertGreater(len(slots_seen), 1)
 
     def test_invalid_inputs_raise(self) -> None:
         with self.assertRaises(ValueError):
-            format_decision_prompt("q", options=[], correct_idx=None)
+            format_decision_prompt("q", options=[], class_idx=None)
         with self.assertRaises(ValueError):
-            format_decision_prompt("q", options=["a", "b"], correct_idx=2)
+            format_decision_prompt("q", options=["a", "b"], class_idx=2)
         with self.assertRaises(ValueError):
             format_decision_prompt(
                 "q",

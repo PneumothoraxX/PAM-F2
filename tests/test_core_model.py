@@ -66,7 +66,7 @@ class TestDecisionModelArchitecture(unittest.TestCase):
         attention_mask = torch.ones_like(input_ids)
         targets = torch.tensor([1, 4], dtype=torch.long)
 
-        out = model(input_ids=input_ids, attention_mask=attention_mask, target_option_idx=targets)
+        out = model(input_ids=input_ids, attention_mask=attention_mask, correct_option_idx=targets)
 
         # Logits must be (batch_size, num_options)
         self.assertEqual(out.logits.shape, (batch_size, num_options))

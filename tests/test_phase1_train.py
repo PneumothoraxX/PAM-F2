@@ -20,14 +20,14 @@ class TestTrainPipeline(unittest.TestCase):
         collator = DecisionDataCollator(self.tokenizer, max_length=128)
 
         options = ["opt_a", "opt_b", "opt_c"]
-        ex1 = format_decision_prompt("query 1", options, correct_idx=0, shuffle_options=False)
-        ex2 = format_decision_prompt("a much longer query 2 with extra words", options, correct_idx=2, shuffle_options=False)
+        ex1 = format_decision_prompt("query 1", options, class_idx=0, shuffle_options=False)
+        ex2 = format_decision_prompt("a much longer query 2 with extra words", options, class_idx=2, shuffle_options=False)
 
         batch = collator([ex1, ex2])
 
         self.assertEqual(batch.input_ids.shape[0], 2)
         self.assertEqual(batch.attention_mask.shape[0], 2)
-        self.assertEqual(batch.target_option_idx.tolist(), [0, 2])
+        self.assertEqual(batch.correct_option_idx.tolist(), [0, 2])
         self.assertEqual(len(batch.option_to_class), 2)
 
         # Padding must be left: position 0 of shorter sequence has pad_token_id (or 0 mask)

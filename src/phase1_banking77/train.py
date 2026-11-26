@@ -28,7 +28,7 @@ class DecisionBatch:
 
     input_ids: torch.Tensor
     attention_mask: torch.Tensor
-    target_option_idx: torch.Tensor
+    correct_option_idx: torch.Tensor
     option_to_class: list[list[int]]
 
 
@@ -53,14 +53,14 @@ class DecisionDataCollator:
             return_tensors="pt",
         )
 
-        targets = [ex.target_option_idx if ex.target_option_idx is not None else -1 for ex in batch]
-        target_tensor = torch.tensor(targets, dtype=torch.long)
+        targets = [ex.correct_option_idx if ex.correct_option_idx is not None else -1 for ex in batch]
+        correct_option_idx = torch.tensor(targets, dtype=torch.long)
         option_to_class = [ex.option_to_class for ex in batch]
 
         return DecisionBatch(
             input_ids=encoded["input_ids"],
             attention_mask=encoded["attention_mask"],
-            target_option_idx=target_tensor,
+            correct_option_idx=correct_option_idx,
             option_to_class=option_to_class,
         )
 
@@ -73,8 +73,8 @@ def evaluate_split(
     """Evaluate loss, accuracy, and collect raw logits + true labels.
 
     Returns:
-        (avg_loss, accuracy, all_canonical_logits, all_true_classes)
-        all_canonical_logits are remapped to standard 0..K-1 class space.
+        (avg_loss, accuracy, all_logits, all_labels)
+        all_logits are remapped to standard 0..K-1 class space.
     """
     model.eval()
     total_loss = 0.0
@@ -88,12 +88,12 @@ def evaluate_split(
         for batch in dataloader:
             input_ids = batch.input_ids.to(device)
             attention_mask = batch.attention_mask.to(device)
-            targets = batch.target_option_idx.to(device)
+            targets = batch.correct_option_idx.to(device)
 
             out = model(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
-                target_option_idx=targets if (targets >= 0).all() else None,
+                correct_option_idx=targets if (targets >= 0).all() else None,
             )
 
             batch_size = input_ids.size(0)
@@ -103,7 +103,7 @@ def evaluate_split(
 
             logits_cpu = out.logits.cpu()
             preds = logits_cpu.argmax(dim=-1)
-            correct += (preds == batch.target_option_idx).sum().item()
+            correct += (preds == batch.correct_option_idx).sum().item()
 
             # Remap logits from shuffled slot order to canonical class indices (0..76)
             num_classes = model.num_options
@@ -111,11 +111,11 @@ def evaluate_split(
             true_classes = torch.empty(batch_size, dtype=torch.long)
 
             for b in range(batch_size):
-                opt_to_cls = batch.option_to_class[b]
-                for slot_idx, cls_idx in enumerate(opt_to_cls):
-                    canonical_logits[b, cls_idx] = logits_cpu[b, slot_idx]
-                true_slot = batch.target_option_idx[b].item()
-                true_classes[b] = opt_to_cls[true_slot] if true_slot >= 0 else -1
+                option_to_class = batch.option_to_class[b]
+                for slot_idx, class_idx in enumerate(option_to_class):
+                    canonical_logits[b, class_idx] = logits_cpu[b, slot_idx]
+                correct_slot = batch.correct_option_idx[b].item()
+                true_classes[b] = option_to_class[correct_slot] if correct_slot >= 0 else -1
 
             collected_canonical_logits.append(canonical_logits)
             collected_true_classes.append(true_classes)
@@ -195,12 +195,12 @@ def train_banking77(
             optimizer.zero_grad()
             input_ids = batch.input_ids.to(device_obj)
             attention_mask = batch.attention_mask.to(device_obj)
-            targets = batch.target_option_idx.to(device_obj)
+            targets = batch.correct_option_idx.to(device_obj)
 
             out = model(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
-                target_option_idx=targets,
+                correct_option_idx=targets,
             )
 
             loss = out.loss
