@@ -75,10 +75,20 @@ class TestDecisionModelArchitecture(unittest.TestCase):
 
         # Backward pass check
         out.loss.backward()
-        for p in decision_model.parameters():
-            if p.grad is not None:
-                self.assertFalse(torch.isnan(p.grad).any())
-                break
+        self.assertIsNotNone(decision_model.reserved_input_embeds.grad)
+        self.assertIsNotNone(decision_model.reserved_output_weight.grad)
+        self.assertFalse(torch.isnan(decision_model.reserved_input_embeds.grad).any())
+        self.assertFalse(torch.isnan(decision_model.reserved_output_weight.grad).any())
+
+        # Pretrained 152k embedding table must stay frozen (grad is None)
+        self.assertIsNone(base_model.get_input_embeddings().weight.grad)
+
+        # Verify distinct initialization: option embeddings must NOT be identical clones
+        cos_sim_01 = torch.nn.functional.cosine_similarity(
+            decision_model.reserved_output_weight[0].unsqueeze(0),
+            decision_model.reserved_output_weight[1].unsqueeze(0),
+        ).item()
+        self.assertLess(cos_sim_01, 0.999)
 
 
 if __name__ == "__main__":

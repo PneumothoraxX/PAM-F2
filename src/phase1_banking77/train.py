@@ -235,9 +235,8 @@ def train_banking77(
 
         if val_acc > best_val_acc:
             best_val_acc = val_acc
-            # Save checkpoint
-            if hasattr(decision_model.base_model, "save_pretrained"):
-                decision_model.base_model.save_pretrained(out_path / "best_lora_checkpoint")
+            # Save LoRA checkpoint + trained reserved token embeddings
+            decision_model.save_checkpoint(out_path / "best_lora_checkpoint")
 
     # 5. Export val and test logits for Phase 1 calibration & evaluation
     print("[*] Exportando logits crudos para calibración L-BFGS y evaluación final...")
