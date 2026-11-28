@@ -1,0 +1,142 @@
+{
+  "num_tools": 24,
+  "num_eval_samples": 200,
+  "optimal_temperature": 1.318190097808838,
+  "recommended_tau": 0.75,
+  "level1_isolated_accuracy": 0.800000011920929,
+  "level1_ece_before": 0.08938657477498053,
+  "level1_ece_after": 0.06122648373246193,
+  "react_isolated_accuracy": 0.78,
+  "react_syntax_error_rate": 0.38,
+  "react_hallucination_rate": 0.24,
+  "hybrid_accuracy_at_recommended_tau": 0.9100000262260437,
+  "hybrid_level1_coverage_at_recommended_tau": 0.699999988079071,
+  "hybrid_effective_latency_ms_at_recommended_tau": 531.6690134221316,
+  "hybrid_syntax_error_rate": 0.0,
+  "gate_sweep": [
+    {
+      "tau": 0.5,
+      "level1_dispatch_rate": 0.9449999928474426,
+      "level2_escalation_rate": 0.05500000715255737,
+      "level1_selective_accuracy": 0.8148148059844971,
+      "hybrid_total_accuracy": 0.8199999928474426,
+      "effective_latency_ms": 255.8161580532789,
+      "syntax_valid_rate": 1.0
+    },
+    {
+      "tau": 0.6,
+      "level1_dispatch_rate": 0.7450000047683716,
+      "level2_escalation_rate": 0.2549999952316284,
+      "level1_selective_accuracy": 0.8791946172714233,
+      "hybrid_total_accuracy": 0.8849999904632568,
+      "effective_latency_ms": 481.00214463114736,
+      "syntax_valid_rate": 1.0
+    },
+    {
+      "tau": 0.7,
+      "level1_dispatch_rate": 0.699999988079071,
+      "level2_escalation_rate": 0.30000001192092896,
+      "level1_selective_accuracy": 0.9071428775787354,
+      "hybrid_total_accuracy": 0.9100000262260437,
+      "effective_latency_ms": 531.6690134221316,
+      "syntax_valid_rate": 1.0
+    },
+    {
+      "tau": 0.75,
+      "level1_dispatch_rate": 0.699999988079071,
+      "level2_escalation_rate": 0.30000001192092896,
+      "level1_selective_accuracy": 0.9071428775787354,
+      "hybrid_total_accuracy": 0.9100000262260437,
+      "effective_latency_ms": 531.6690134221316,
+      "syntax_valid_rate": 1.0
+    },
+    {
+      "tau": 0.8,
+      "level1_dispatch_rate": 0.699999988079071,
+      "level2_escalation_rate": 0.30000001192092896,
+      "level1_selective_accuracy": 0.9071428775787354,
+      "hybrid_total_accuracy": 0.9100000262260437,
+      "effective_latency_ms": 531.6690134221316,
+      "syntax_valid_rate": 1.0
+    },
+    {
+      "tau": 0.85,
+      "level1_dispatch_rate": 0.699999988079071,
+      "level2_escalation_rate": 0.30000001192092896,
+      "level1_selective_accuracy": 0.9071428775787354,
+      "hybrid_total_accuracy": 0.9100000262260437,
+      "effective_latency_ms": 531.6690134221316,
+      "syntax_valid_rate": 1.0
+    },
+    {
+      "tau": 0.9,
+      "level1_dispatch_rate": 0.6499999761581421,
+      "level2_escalation_rate": 0.3500000238418579,
+      "level1_selective_accuracy": 0.9076923131942749,
+      "hybrid_total_accuracy": 0.9100000262260437,
+      "effective_latency_ms": 587.9655268442631,
+      "syntax_valid_rate": 1.0
+    },
+    {
+      "tau": 0.95,
+      "level1_dispatch_rate": 0.4449999928474426,
+      "level2_escalation_rate": 0.5550000071525574,
+      "level1_selective_accuracy": 0.8876404762268066,
+      "hybrid_total_accuracy": 0.9200000166893005,
+      "effective_latency_ms": 818.781158053279,
+      "syntax_valid_rate": 1.0
+    }
+  ],
+  "tree_batching_benchmark": [
+    {
+      "num_questions": 1,
+      "naive_latency_ms": 22.149783999907413,
+      "tree_latency_ms": 7.665449499995702,
+      "speedup_factor": 2.8895610100777303,
+      "naive_tokens_processed": 963,
+      "tree_tokens_processed": 963,
+      "token_reduction_ratio": 1.0
+    },
+    {
+      "num_questions": 2,
+      "naive_latency_ms": 13.118595000037203,
+      "tree_latency_ms": 10.376045500038344,
+      "speedup_factor": 1.2643154851227978,
+      "naive_tokens_processed": 1923,
+      "tree_tokens_processed": 985,
+      "token_reduction_ratio": 1.952284263959391
+    },
+    {
+      "num_questions": 4,
+      "naive_latency_ms": 24.011616999928265,
+      "tree_latency_ms": 7.90514950006127,
+      "speedup_factor": 3.037465262325799,
+      "naive_tokens_processed": 3834,
+      "tree_tokens_processed": 1020,
+      "token_reduction_ratio": 3.7588235294117647
+    },
+    {
+      "num_questions": 8,
+      "naive_latency_ms": 46.136222499967516,
+      "tree_latency_ms": 8.947691999992458,
+      "speedup_factor": 5.156214865241942,
+      "naive_tokens_processed": 7664,
+      "tree_tokens_processed": 1098,
+      "token_reduction_ratio": 6.979963570127505
+    },
+    {
+      "num_questions": 16,
+      "naive_latency_ms": 81.90935499999341,
+      "tree_latency_ms": 8.364051499938796,
+      "speedup_factor": 9.793023751777806,
+      "naive_tokens_processed": 15318,
+      "tree_tokens_processed": 1248,
+      "token_reduction_ratio": 12.274038461538462
+    }
+  ],
+  "generated_figures": [
+    "results/phase2_bfcl/hybrid_gate_tradeoff.png",
+    "results/phase2_bfcl/bfcl_syntax_and_accuracy.png",
+    "results/phase2_bfcl/tree_batching_latency.png"
+  ]
+}

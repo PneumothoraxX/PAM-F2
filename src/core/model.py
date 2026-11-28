@@ -308,7 +308,7 @@ class DecisionModel(nn.Module):
         ckpt_path.mkdir(parents=True, exist_ok=True)
         self.sync_reserved_weights_to_base()
         if hasattr(self.base_model, "save_pretrained"):
-            self.base_model.save_pretrained(ckpt_path)
+            self.base_model.save_pretrained(ckpt_path, save_embedding_layers=False)
         torch.save(
             {
                 "reserved_input_embeds": self.reserved_input_embeds.detach().cpu(),
