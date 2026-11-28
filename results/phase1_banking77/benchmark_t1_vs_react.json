@@ -1,0 +1,26 @@
+{
+  "decision_t1": {
+    "num_samples": 50,
+    "accuracy": 0.76,
+    "syntax_error_rate": 0.0,
+    "hallucination_rate": 0.0,
+    "invalid_total_rate": 0.0,
+    "mean_latency_ms": 193.89,
+    "p50_latency_ms": 191.4,
+    "p95_latency_ms": 204.2,
+    "mean_generated_tokens": 1.0,
+    "peak_vram_mb": 1142.0
+  },
+  "react_t_gt_1": {
+    "num_samples": 50,
+    "accuracy": 0.28,
+    "syntax_error_rate": 0.38,
+    "hallucination_rate": 0.24,
+    "invalid_total_rate": 0.62,
+    "mean_latency_ms": 1125.93,
+    "p50_latency_ms": 1110.5,
+    "p95_latency_ms": 1248.0,
+    "mean_generated_tokens": 32.5,
+    "peak_vram_mb": 1485.0
+  }
+}

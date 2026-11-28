@@ -1,0 +1,86 @@
+{
+  "optimal_temperature": 1.0534,
+  "ece_target_met": true,
+  "val_accuracy": 0.7481,
+  "val_ece_before": 0.0448,
+  "val_ece_after": 0.0294,
+  "val_nll_before": 1.0996,
+  "val_nll_after": 1.0972,
+  "test_accuracy": 0.7506,
+  "test_ece_before": 0.0463,
+  "test_ece_after": 0.0301,
+  "test_mce_before": 0.174,
+  "test_mce_after": 0.124,
+  "test_nll_before": 1.1004,
+  "test_nll_after": 1.0981,
+  "decision_model_syntax_error_rate": 0.0,
+  "decision_model_hallucination_rate": 0.0,
+  "decision_model_latency_ms": 193.89,
+  "gating_curve": [
+    {
+      "tau": 0.5,
+      "coverage_level1": 0.813,
+      "escalation_rate_level2": 0.187,
+      "selective_accuracy_level1": 0.861
+    },
+    {
+      "tau": 0.6,
+      "coverage_level1": 0.768,
+      "escalation_rate_level2": 0.232,
+      "selective_accuracy_level1": 0.884
+    },
+    {
+      "tau": 0.7,
+      "coverage_level1": 0.719,
+      "escalation_rate_level2": 0.281,
+      "selective_accuracy_level1": 0.901
+    },
+    {
+      "tau": 0.75,
+      "coverage_level1": 0.684,
+      "escalation_rate_level2": 0.316,
+      "selective_accuracy_level1": 0.913
+    },
+    {
+      "tau": 0.8,
+      "coverage_level1": 0.642,
+      "escalation_rate_level2": 0.358,
+      "selective_accuracy_level1": 0.927
+    },
+    {
+      "tau": 0.85,
+      "coverage_level1": 0.594,
+      "escalation_rate_level2": 0.406,
+      "selective_accuracy_level1": 0.938
+    },
+    {
+      "tau": 0.9,
+      "coverage_level1": 0.517,
+      "escalation_rate_level2": 0.483,
+      "selective_accuracy_level1": 0.949
+    },
+    {
+      "tau": 0.95,
+      "coverage_level1": 0.354,
+      "escalation_rate_level2": 0.646,
+      "selective_accuracy_level1": 0.961
+    }
+  ],
+  "react_comparison": {
+    "num_samples": 50,
+    "accuracy": 0.28,
+    "syntax_error_rate": 0.38,
+    "hallucination_rate": 0.24,
+    "invalid_total_rate": 0.62,
+    "mean_latency_ms": 1125.93,
+    "p50_latency_ms": 1110.5,
+    "p95_latency_ms": 1248.0,
+    "mean_generated_tokens": 32.5,
+    "peak_vram_mb": 1485.0
+  },
+  "generated_figures": [
+    "results/phase1_banking77/reliability_diagram.png",
+    "results/phase1_banking77/confidence_and_gating_curve.png",
+    "results/phase1_banking77/decision_vs_react_comparison.png"
+  ]
+}
