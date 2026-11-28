@@ -101,12 +101,20 @@ Experimento ejecutado en **NVIDIA Tesla T4 (16 GB)** con `Qwen/Qwen2.5-0.5B-Inst
 
 ---
 
-### 4.2. Fase Experimental 2 — Compuerta Híbrida ($\tau$) sobre BFCL y Tree Batching 2D
+### 4.2. Fase Experimental 2 — Compuerta Híbrida ($\tau$) sobre BFCL y Tree Batching 2D (GPU Tesla T4)
 
-Evaluación sobre el catálogo de **24 APIs ejecutables estilo BFCL** (`200` consultas de evaluación con `30 %` de consultas ambiguas multi-restricción) y evaluación de **Tree Batching** ($M \in \{1, 2, 4, 8, 16\}$ preguntas concurrentes sobre un mismo expediente compartido $s_t$):
+Experimento ejecutado en vivo en **NVIDIA Tesla T4 (16 GB)** con `Qwen/Qwen2.5-0.5B-Instruct` + LoRA sobre el catálogo de **24 APIs ejecutables estilo BFCL** (`480` muestras de entrenamiento, `120` de validación y `200` de evaluación con `30 %` de consultas ambiguas multi-restricción) y evaluación de **Tree Batching** ($M \in \{1, 2, 4, 8, 16\}$ preguntas concurrentes sobre un mismo expediente compartido $s_t$):
 
-* **Efecto de la Compuerta Híbrida ($\tau = 0.75$):** El Nivel 1 resuelve directamente el **`70.0 %`** de las consultas en un solo paso ($T=1$) con una precisión selectiva superior al **`90 %`** y deriva únicamente el **`30.0 %`** ambiguo al Nivel 2, elevando la precisión total del sistema del **`80.00 %` al `91.00 %`** con **`0.0 %` de fallos sintácticos JSON** y una latencia efectiva media de **`473.5 ms`** (menos de la mitad de los `1,125.9 ms` de ReAct puro).
-* **Efecto de Tree Batching ($M = 16$ preguntas por estado):** Al colocar el estado compartido $s_t$ y el catálogo de 24 APIs en el tronco común con máscara causal 2D, el total de tokens procesados en *prefill* cae de **`15,318 tokens`** (enfoque ingenuo de 16 secuencias) a **`1,248 tokens`** (**`12.27x` menos tokens procesados** y **`>10x` de aceleración**).
+| Métrica Evaluada (Fase 2 BFCL) | Nivel 1 Aislado ($T = 1$) | Agente Híbrido ($\tau = 0.75$) | ReAct Puro ($T > 1$) | Mejora del Agente Híbrido |
+| :--- | :---: | :---: | :---: | :--- |
+| **Precisión en Selección de API** | `79.50 %` | **`93.50 %`** | `30.00 %` | **+14.00 pts vs Nivel 1 / +63.50 pts vs ReAct** |
+| **Despacho Directo en Nivel 1 ($T=1$)** | `100.0 %` | **`84.50 %`** (`94.1%` acc. selectiva) | `0.0 %` | Solo el `15.5 %` ambiguo escala a Nivel 2 |
+| **Latencia Efectiva Media** | **`215.4 ms`** | **`385.9 ms`** | `1,125.9 ms` | **`2.92x` más rápido que ReAct puro** |
+| **Tasa de Fallo JSON + Alucinación** | **`0.00 %`** | **`0.00 %`** | `56.70 %` | **Eliminación del 100 % de fallos sintácticos** |
+| **Tree Batching ($M = 16$ preguntas)** | `3,879.7 ms` (`13,606` tok, ingenuo) | **`354.5 ms` (`1,141` tok, Tree 2D)** | — | **`10.94x` speedup y `11.92x` menos tokens** |
+
+* **Efecto de la Compuerta Híbrida ($\tau = 0.75$, $T^* = 1.4133$):** El Nivel 1 resuelve directamente el **`84.5 %`** de las consultas en un solo paso ($T=1$) con una precisión selectiva del **`94.1 %`** y deriva únicamente el **`15.5 %`** ambiguo al Nivel 2, elevando la precisión total del sistema del **`79.50 %` al `93.50 %`** con **`0.0 %` de fallos sintácticos JSON** y una latencia efectiva media de **`385.9 ms`**.
+* **Efecto de Tree Batching ($M = 16$ preguntas por estado):** Al colocar el estado compartido $s_t$ y el catálogo de 24 APIs en el tronco común con máscara causal 2D y `position_ids` reiniciados por rama, el total de tokens procesados en *prefill* cae de **`13,606 tokens`** (16 secuencias separadas) a **`1,141 tokens`** (**`11.92x` menos tokens procesados**) y la latencia total en GPU cae de **`3,879.7 ms` a `354.5 ms` (`10.94x` de aceleración)**.
 
 #### Curva de Compensación de la Compuerta Híbrida: Precisión y Latencia Efectiva vs. Umbral $\tau$
 ![Compuerta Híbrida BFCL](results/phase2_bfcl/hybrid_gate_tradeoff.png)
