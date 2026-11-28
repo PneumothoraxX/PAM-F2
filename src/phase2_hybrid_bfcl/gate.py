@@ -96,7 +96,6 @@ def evaluate_hybrid_gate_sweep(
         # Deterministic per-sample Level-2 resolution mask matching target accuracy on escalated queries
         gen = torch.Generator().manual_seed(42)
         l2_success_draw = (torch.rand(n_total, generator=gen) < level2_react_accuracy_on_escalated).float()
-        # Level 2 is at least as accurate as Level 1 on clear queries and resolves ambiguous ones
         l2_correct = torch.maximum(l1_correct, l2_success_draw)
 
         sweep_points: list[HybridSweepPoint] = []
@@ -135,13 +134,21 @@ def evaluate_hybrid_gate_sweep(
         return sweep_points
 
 
-def format_tree_branch_text(question: str, option_names: Sequence[str]) -> str:
-    """Format a single question branch ending with <readout> for Tree Batching."""
-    lines = [f"\nQuestion: {question.strip()}", "Options:"]
+def format_tree_shared_trunk(state_text: str, option_names: Sequence[str]) -> str:
+    """Format the shared trunk (shared context state s_t + closed option catalog <opt_k>)."""
+    lines = [
+        "Select the tool that best answers the question about the shared state.",
+        f"Shared State:\n{state_text.strip()}",
+        "Options:",
+    ]
     for slot_idx, opt_text in enumerate(option_names):
         lines.append(f"- {opt_text} {option_token(slot_idx)}")
-    lines.append(READOUT_TOKEN)
     return "\n".join(lines)
+
+
+def format_tree_branch_text(question: str) -> str:
+    """Format a compact question branch ending with <readout> for Tree Batching."""
+    return f"\nQuestion: {question.strip()}\n{READOUT_TOKEN}"
 
 
 def build_tree_batch(
@@ -152,14 +159,14 @@ def build_tree_batch(
     device_obj: torch.device | None = None,
     dtype: torch.dtype = torch.float32,
 ) -> PackedTreeBatch:
-    """Pack a shared state and M question branches into one sequence with a 2D causal mask.
+    """Pack a shared state + catalog trunk and M question branches with a 2D causal mask.
 
     Implements Section II-C (Tree Batching):
-      1. Tokenize the shared state s_t once (trunk of the tree).
-      2. Append each question branch q^(m) ending with <readout>.
-      3. Construct a 2D causal mask where each branch attends to the shared state
+      1. Tokenize the shared trunk (state s_t + option catalog <opt_0>..<opt_{K-1}>) once.
+      2. Append each compact question branch q^(m) ending with <readout>.
+      3. Construct a 2D causal mask where each branch attends to the shared trunk
          and causally to its own tokens, never to sibling branches.
-      4. Assign per-branch position_ids resetting to L_state at each branch root so
+      4. Assign per-branch position_ids resetting to L_trunk at each branch root so
          every question receives the exact same positional encoding as in isolation.
     """
     if len(questions) == 0:
@@ -167,43 +174,43 @@ def build_tree_batch(
 
     dev = device_obj if device_obj is not None else torch.device("cpu")
 
-    state_prefix = f"Shared State:\n{state_text.strip()}\n"
-    state_ids: list[int] = tokenizer.encode(state_prefix, add_special_tokens=False)
-    l_state = len(state_ids)
-    if l_state == 0:
+    trunk_str = format_tree_shared_trunk(state_text, option_names)
+    trunk_ids: list[int] = tokenizer.encode(trunk_str, add_special_tokens=False)
+    l_trunk = len(trunk_ids)
+    if l_trunk == 0:
         raise ValueError("state_text produced 0 tokens")
 
-    packed_ids: list[int] = list(state_ids)
-    pos_ids: list[int] = list(range(l_state))
+    packed_ids: list[int] = list(trunk_ids)
+    pos_ids: list[int] = list(range(l_trunk))
     branch_spans: list[tuple[int, int]] = []
     readout_positions: list[int] = []
     naive_tokens = 0
 
     for q_text in questions:
-        branch_str = format_tree_branch_text(q_text, option_names)
+        branch_str = format_tree_branch_text(q_text)
         branch_ids: list[int] = tokenizer.encode(branch_str, add_special_tokens=False)
         b_start = len(packed_ids)
         b_len = len(branch_ids)
         b_end = b_start + b_len
 
         packed_ids.extend(branch_ids)
-        # Position IDs reset to l_state for every branch so positional embeddings match standalone execution
-        pos_ids.extend(range(l_state, l_state + b_len))
+        # Position IDs reset to l_trunk for every branch so RoPE/absolute positions match standalone execution
+        pos_ids.extend(range(l_trunk, l_trunk + b_len))
         branch_spans.append((b_start, b_end))
         readout_positions.append(b_end - 1)
-        naive_tokens += l_state + b_len
+        naive_tokens += l_trunk + b_len
 
     l_total = len(packed_ids)
     mask_2d = torch.zeros((l_total, l_total), dtype=torch.bool, device=dev)
 
-    # 1. Shared state attends causally to itself
-    state_indices = torch.arange(l_state, device=dev)
-    state_causal = state_indices.unsqueeze(0) <= state_indices.unsqueeze(1)
-    mask_2d[:l_state, :l_state] = state_causal
+    # 1. Shared trunk attends causally to itself
+    trunk_indices = torch.arange(l_trunk, device=dev)
+    trunk_causal = trunk_indices.unsqueeze(0) <= trunk_indices.unsqueeze(1)
+    mask_2d[:l_trunk, :l_trunk] = trunk_causal
 
-    # 2. Each branch attends to the entire shared state + causally to its own branch tokens
+    # 2. Each branch attends to the entire shared trunk + causally to its own branch tokens
     for b_start, b_end in branch_spans:
-        mask_2d[b_start:b_end, :l_state] = True
+        mask_2d[b_start:b_end, :l_trunk] = True
         b_len = b_end - b_start
         b_idx = torch.arange(b_len, device=dev)
         b_causal = b_idx.unsqueeze(0) <= b_idx.unsqueeze(1)
@@ -223,7 +230,7 @@ def build_tree_batch(
         attention_mask_2d=mask_2d,
         attention_mask_4d=mask_4d,
         readout_positions=readout_positions,
-        state_token_count=l_state,
+        state_token_count=l_trunk,
         total_token_count=l_total,
         naive_total_token_count=naive_tokens,
     )
@@ -260,11 +267,9 @@ def run_tree_batched_forward(
             )
             hidden_seq = outputs.hidden_states[-1]
 
-        # Extract the M readout vectors from the single packed sequence: (M, hidden_dim)
         readout_idx = torch.tensor(packed.readout_positions, dtype=torch.long, device=hidden_seq.device)
         readout_hiddens = hidden_seq[0, readout_idx, :]
 
-        # Project all M readout states onto the K reserved option rows: (M, K)
         logits = F.linear(
             readout_hiddens.to(decision_model.reserved_output_weight.dtype),
             decision_model.reserved_output_weight,
@@ -280,16 +285,15 @@ def run_naive_multi_question_forward(
     tokenizer: PreTrainedTokenizerBase,
     device_obj: torch.device,
 ) -> torch.Tensor:
-    """Naive approach: run M separate forward passes repeating state_text every time."""
+    """Naive approach: run M separate forward passes repeating the shared trunk every time."""
     decision_model.eval()
-    state_prefix = f"Shared State:\n{state_text.strip()}\n"
+    trunk_ids = tokenizer.encode(format_tree_shared_trunk(state_text, option_names), add_special_tokens=False)
     all_logits: list[torch.Tensor] = []
 
     with torch.no_grad():
         for q_text in questions:
-            full_text = state_prefix + format_tree_branch_text(q_text, option_names)
-            ids = tokenizer.encode(full_text, add_special_tokens=False)
-            input_ids = torch.tensor([ids], dtype=torch.long, device=device_obj)
+            branch_ids = tokenizer.encode(format_tree_branch_text(q_text), add_special_tokens=False)
+            input_ids = torch.tensor([trunk_ids + branch_ids], dtype=torch.long, device=device_obj)
             out = decision_model(input_ids=input_ids)
             all_logits.append(out.logits[0])
 
@@ -310,7 +314,6 @@ def benchmark_tree_batching(
     decision_model.eval()
     results: list[TreeBatchBenchmarkPoint] = []
 
-    # Warm-up pass
     warm_pack = build_tree_batch(state_text, questions[:1], option_names, tokenizer, device_obj)
     _ = run_tree_batched_forward(decision_model, warm_pack)
 
@@ -321,7 +324,7 @@ def benchmark_tree_batching(
 
         packed = build_tree_batch(state_text, q_subset, option_names, tokenizer, device_obj)
 
-        # 1. Measure Naive approach (M separate sequences repeating the shared state)
+        # 1. Measure Naive approach (M separate sequences repeating the shared trunk)
         if device_obj.type == "cuda":
             torch.cuda.synchronize(device_obj)
         t0 = time.perf_counter()
